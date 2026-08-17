@@ -1,6 +1,6 @@
-### Hydrax GoodWe Integration
+### Upande GoodWe Integration
 
-GoodWe solar monitoring and energy management integration for Hydrax Water
+GoodWe solar monitoring and energy management integration for Upande Water
 
 ### Installation
 
@@ -9,7 +9,7 @@ You can install this app using the [bench](https://github.com/frappe/bench) CLI:
 ```bash
 cd $PATH_TO_YOUR_BENCH
 bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app hydrax_goodwe
+bench install-app upande_goodwe
 ```
 
 ### Contributing
@@ -17,7 +17,7 @@ bench install-app hydrax_goodwe
 This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
 
 ```bash
-cd apps/hydrax_goodwe
+cd apps/upande_goodwe
 pre-commit install
 ```
 

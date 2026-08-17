@@ -1,9 +1,9 @@
 [project]
-name = "hydrax_goodwe"
+name = "upande_goodwe"
 authors = [
-    { name = "Hydrax", email = "nathan@upande.com"}
+    { name = "Upande", email = "nathan@upande.com"}
 ]
-description = "GoodWe solar monitoring and energy management integration for Hydrax Water"
+description = "GoodWe solar monitoring and energy management integration for Upande Water"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]

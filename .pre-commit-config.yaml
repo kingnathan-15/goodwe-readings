@@ -8,7 +8,7 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        files: "hydrax_goodwe.*"
+        files: "upande_goodwe.*"
         exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
       - id: check-merge-conflict
       - id: check-ast
@@ -38,11 +38,11 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
             (?x)^(
-                hydrax_goodwe/public/dist/.*|
+                upande_goodwe/public/dist/.*|
                 .*node_modules.*|
                 .*boilerplate.*|
-                hydrax_goodwe/templates/includes/.*|
-                hydrax_goodwe/public/js/lib/.*
+                upande_goodwe/templates/includes/.*|
+                upande_goodwe/public/js/lib/.*
             )$
 
 
@@ -55,12 +55,12 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
             (?x)^(
-                hydrax_goodwe/public/dist/.*|
+                upande_goodwe/public/dist/.*|
                 cypress/.*|
                 .*node_modules.*|
                 .*boilerplate.*|
-                hydrax_goodwe/templates/includes/.*|
-                hydrax_goodwe/public/js/lib/.*
+                upande_goodwe/templates/includes/.*|
+                upande_goodwe/public/js/lib/.*
             )$
 
 ci:
