@@ -8,7 +8,7 @@ app_license = "mit"
 
 scheduler_events = {
     "cron": {
-        "*/2 * * * *": [
+        "*/15 * * * *": [
             "upande_goodwe.goodwe.sync.sync_all_stations"
         ]
     }
