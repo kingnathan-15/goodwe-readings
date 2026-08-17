@@ -1,0 +1,238 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "{inverter} - hash",
+ "creation": "2026-07-28 02:44:37.753203",
+ "description": "Readings extracted from the GoodWe API Platform",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "information_section",
+  "inverter",
+  "reading_time",
+  "power_generation_section",
+  "current_power_kw",
+  "daily_energy_kwh",
+  "total_energy_kwh",
+  "grid_data_section",
+  "grid_power_kw",
+  "grid_voltage_v",
+  "grid_frequency_hz",
+  "grid_current_a",
+  "load_power_kw",
+  "pv1_voltage_v",
+  "pv1_current_a",
+  "pv2_voltage_v",
+  "pv2_current_a",
+  "battery_section",
+  "battery_soc",
+  "battery_power_kw",
+  "inverter_status_section",
+  "error_code",
+  "status",
+  "work_mode",
+  "inverter_temperature_c",
+  "section_break_pbjl",
+  "api_timestamp",
+  "sync_time",
+  "error_message"
+ ],
+ "fields": [
+  {
+   "fieldname": "information_section",
+   "fieldtype": "Section Break",
+   "label": "Information"
+  },
+  {
+   "fieldname": "inverter",
+   "fieldtype": "Link",
+   "label": "Inverter",
+   "options": "GoodWe Device",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reading_time",
+   "fieldtype": "Datetime",
+   "label": "Reading Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "power_generation_section",
+   "fieldtype": "Section Break",
+   "label": "Power Generation"
+  },
+  {
+   "fieldname": "current_power_kw",
+   "fieldtype": "Float",
+   "label": "Current Power (kW)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "daily_energy_kwh",
+   "fieldtype": "Float",
+   "label": "Daily Energy (kWh)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_energy_kwh",
+   "fieldtype": "Float",
+   "label": "Total Energy (kWh)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grid_data_section",
+   "fieldtype": "Section Break",
+   "label": "Electrical"
+  },
+  {
+   "fieldname": "grid_power_kw",
+   "fieldtype": "Float",
+   "label": "Grid Power (kW)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grid_voltage_v",
+   "fieldtype": "Float",
+   "label": "Grid Voltage (V)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grid_frequency_hz",
+   "fieldtype": "Float",
+   "label": "Grid Frequency (Hz)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "battery_section",
+   "fieldtype": "Section Break",
+   "label": "Battery"
+  },
+  {
+   "fieldname": "battery_soc",
+   "fieldtype": "Percent",
+   "label": "Battery SOC",
+   "read_only": 1
+  },
+  {
+   "fieldname": "battery_power_kw",
+   "fieldtype": "Float",
+   "label": "Battery Power (kW)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inverter_status_section",
+   "fieldtype": "Section Break",
+   "label": "Inverter Status"
+  },
+  {
+   "fieldname": "inverter_temperature_c",
+   "fieldtype": "Float",
+   "label": "Inverter Temperature (C)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_code",
+   "fieldtype": "Data",
+   "label": "Error Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Long Text",
+   "label": "Raw Response"
+  },
+  {
+   "fieldname": "grid_current_a",
+   "fieldtype": "Float",
+   "label": "Grid Current (A)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "load_power_kw",
+   "fieldtype": "Float",
+   "label": "Load Power (kW)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pv1_voltage_v",
+   "fieldtype": "Float",
+   "label": "PV1 Voltage (V)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pv1_current_a",
+   "fieldtype": "Float",
+   "label": "PV1 Current (A)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pv2_voltage_v",
+   "fieldtype": "Float",
+   "label": "PV2 Voltage (V)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pv2_current_a",
+   "fieldtype": "Float",
+   "label": "PV2 Current (A)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Communication Status",
+   "options": "Online\nOffline\nWarning\nFault\nUnknown",
+   "read_only": 1
+  },
+  {
+   "fieldname": "work_mode",
+   "fieldtype": "Data",
+   "label": "Work Mode",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_pbjl",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "api_timestamp",
+   "fieldtype": "Datetime",
+   "label": "API Timestamp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_time",
+   "fieldtype": "Datetime",
+   "label": "Sync Time",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-17 12:17:31.015317",
+ "modified_by": "Administrator",
+ "module": "Hydrax GoodWe Integration",
+ "name": "GoodWe Reading",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
