@@ -5,6 +5,14 @@ app_description = "GoodWe solar monitoring and energy management integration for
 app_email = "nathan@upande.com"
 app_license = "mit"
 
+
+scheduler_events = {
+    "cron": {
+        "*/2 * * * *": [
+            "hydrax_goodwe.goodwe.sync.sync_all_stations"
+        ]
+    }
+}
 # Apps
 # ------------------
 
