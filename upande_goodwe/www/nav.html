@@ -1,0 +1,37 @@
+<nav class="gw-nav">
+  <a href="/dashboard/monitors" class="gw-nav-link {% if active_page == 'monitors' %}active{% endif %}">
+    Monitors Dashboard
+  </a>
+  <a href="/dashboard/readings" class="gw-nav-link {% if active_page == 'readings' %}active{% endif %}">
+    Latest Readings
+  </a>
+</nav>
+
+<style>
+  .gw-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: #eef0ed;
+    padding: 6px;
+    border-radius: 999px;
+    width: fit-content;
+  }
+  .gw-nav-link {
+    padding: 8px 18px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: #5a5a52;
+    transition: background 0.2s, color 0.2s;
+  }
+  .gw-nav-link:hover {
+    color: #0a0a0a;
+  }
+  .gw-nav-link.active {
+    background: #ffffff;
+    color: #0a0a0a;
+    box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 4px 16px -8px rgba(10,10,10,.10);
+  }
+</style>

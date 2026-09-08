@@ -1,0 +1,351 @@
+{% set active_page = 'readings' %}
+
+<div class="gw-page">
+
+  {# Navigation Bar #}
+  {% include "navbar.html" ignore missing %}
+
+  <div class="gw-pagehead">
+    <div>
+      <div class="gw-eyebrow">Hydrax · Energy Operations</div>
+      <h1 class="gw-title">Latest Readings</h1>
+      <p class="gw-sub">Live telemetry filterable by inverter equipment</p>
+    </div>
+
+    <div class="gw-tools">
+      <!-- Inverter Dropdown Filter -->
+      <div class="gw-filter-wrapper">
+        <select id="inverter-filter" class="gw-select" onchange="filterInverters(this.value)">
+          <option value="all">All Inverters</option>
+          {% for inverter in inverters %}
+            <option value="{{ inverter.id }}">{{ inverter.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <span class="gw-sync" id="last-sync">Live Data</span>
+      <button class="gw-refresh" id="refresh-btn" onclick="window.location.reload()">↻</button>
+    </div>
+  </div>
+
+  {# System Telemetry KPI Summary #}
+  <div class="gw-kpis">
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Current PV Power</div>
+      <div class="gw-kpi-value" id="total-pv">{{ summary.pv_power | default('—') }}</div>
+      <div class="gw-kpi-unit">kW</div>
+    </div>
+
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Today's Generation</div>
+      <div class="gw-kpi-value" id="daily-energy">{{ summary.daily_energy | default('—') }}</div>
+      <div class="gw-kpi-unit">kWh</div>
+    </div>
+
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Total Generation</div>
+      <div class="gw-kpi-value" id="total-energy">{{ summary.total_energy | default('—') }}</div>
+      <div class="gw-kpi-unit">kWh</div>
+    </div>
+
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Battery SOC</div>
+      <div class="gw-kpi-value" id="battery-soc">{{ summary.battery_soc | default('—') }}</div>
+      <div class="gw-kpi-unit">%</div>
+    </div>
+  </div>
+
+  {# Inverter Detailed Grid #}
+  <div class="gw-section">
+    <div class="gw-section-head">
+      <div>
+        <div class="gw-section-eyebrow">Equipment</div>
+        <h2>Inverters</h2>
+      </div>
+    </div>
+
+    <div class="gw-device-grid" id="device-grid">
+      {% if inverters %}
+        {% for inv in inverters %}
+          <div class="gw-device" data-inverter-id="{{ inv.id }}">
+            <div class="gw-device-head">
+              <span class="gw-device-name">{{ inv.name }}</span>
+              <span class="gw-status {{ inv.status | lower }}">{{ inv.status }}</span>
+            </div>
+            
+            <div class="gw-device-stats">
+              <div class="gw-device-stat">
+                <small>PV Power</small>
+                <b>{{ inv.pv_power }} <span class="stat-unit">kW</span></b>
+              </div>
+              <div class="gw-device-stat">
+                <small>Output Voltage</small>
+                <b>{{ inv.voltage }} <span class="stat-unit">V</span></b>
+              </div>
+              <div class="gw-device-stat">
+                <small>Daily Output</small>
+                <b>{{ inv.daily_energy }} <span class="stat-unit">kWh</span></b>
+              </div>
+              <div class="gw-device-stat">
+                <small>Temperature</small>
+                <b>{{ inv.temperature }} <span class="stat-unit">°C</span></b>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="gw-loading">
+          No inverters found.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function filterInverters(selectedId) {
+    const devices = document.querySelectorAll('.gw-device');
+    devices.forEach(device => {
+      if (selectedId === 'all' || device.getAttribute('data-inverter-id') === selectedId) {
+        device.style.display = 'block';
+      } else {
+        device.style.display = 'none';
+      }
+    });
+  }
+</script>
+
+<style>
+  .gw-page {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+    color: #2a2a26;
+    font-family: Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .gw-pagehead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 30px;
+    margin-bottom: 36px;
+  }
+
+  .gw-eyebrow, .gw-section-eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #8a8780;
+    margin-bottom: 10px;
+  }
+
+  .gw-title {
+    margin: 0;
+    font-size: 44px;
+    line-height: 1.05;
+    color: #0a0a0a;
+    letter-spacing: -1.3px;
+  }
+
+  .gw-sub {
+    margin: 8px 0 0;
+    font-size: 15px;
+    color: #5a5a52;
+  }
+
+  .gw-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Dropdown Filter Styling */
+  .gw-select {
+    appearance: none;
+    background: white url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235A5A52%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center;
+    background-size: 9px auto;
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 36px 10px 16px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #5a5a52;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10);
+    outline: none;
+  }
+
+  .gw-sync {
+    background: white;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #5a5a52;
+    box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10);
+  }
+
+  .gw-refresh {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+    font-size: 20px;
+    color: #3a3a34;
+    box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10);
+  }
+
+  .gw-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .gw-kpi, .gw-card, .gw-device {
+    background: white;
+    border-radius: 20px;
+    padding: 24px 26px;
+    box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10);
+  }
+
+  .gw-kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: #8a8780;
+    margin-bottom: 8px;
+  }
+
+  .gw-kpi-value {
+    display: inline-block;
+    font-size: 34px;
+    font-weight: 600;
+    color: #0a0a0a;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gw-kpi-unit {
+    display: inline-block;
+    margin-left: 5px;
+    color: #8a8780;
+    font-size: 13px;
+  }
+
+  .gw-section {
+    margin-top: 18px;
+  }
+
+  .gw-section-head {
+    margin-bottom: 16px;
+  }
+
+  .gw-section-head h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #0a0a0a;
+  }
+
+  .gw-device-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .gw-device {
+    transition: transform .2s, box-shadow .2s;
+  }
+
+  .gw-device:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 1px 0 rgba(10,10,10,.06), 0 24px 48px -24px rgba(10,10,10,.18);
+  }
+
+  .gw-device-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .gw-device-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0a0a0a;
+  }
+
+  .gw-status {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .gw-status.online {
+    background: rgba(34,136,131,.10);
+    color: #228883;
+  }
+
+  .gw-status.offline {
+    background: rgba(196,48,43,.10);
+    color: #c4302b;
+  }
+
+  .gw-device-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .gw-device-stat small {
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 9px;
+    color: #8a8780;
+    margin-bottom: 3px;
+  }
+
+  .gw-device-stat b {
+    font-size: 18px;
+    color: #0a0a0a;
+  }
+
+  .stat-unit {
+    font-size: 12px;
+    color: #8a8780;
+    font-weight: normal;
+  }
+
+  .gw-loading {
+    grid-column: 1 / -1;
+    padding: 40px;
+    text-align: center;
+    color: #8a8780;
+  }
+
+  @media (max-width: 1000px) {
+    .gw-kpis {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .gw-pagehead {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .gw-page {
+      padding: 30px 18px 60px;
+    }
+    .gw-title {
+      font-size: 34px;
+    }
+    .gw-kpis {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

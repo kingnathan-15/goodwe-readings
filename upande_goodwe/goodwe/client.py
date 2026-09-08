@@ -33,22 +33,40 @@ class GoodWeClient:
         print("HEADERS:", self.headers)
         print("PAYLOAD:", payload)
         print("====================================")
-        response = requests.post(
-            f"{self.base_url}/{endpoint.lstrip('/')}",
-            headers=self.headers,
-            json=payload,
-            timeout=30,
-        )
 
-        response.raise_for_status()
+        try:
+            response = requests.post(
+                f"{self.base_url}/{endpoint.lstrip('/')}",
+                headers=self.headers,
+                json=payload,
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.exceptions.ConnectionError:
+            frappe.throw("Unable to reach GoodWe SEMS Portal. Please check network connectivity.")
+        except requests.exceptions.Timeout:
+            frappe.throw("GoodWe API request timed out after 30 seconds.")
+        except requests.exceptions.HTTPError as e:
+            frappe.throw(f"GoodWe HTTP Error {response.status_code}: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            frappe.throw(f"GoodWe Request Error: {str(e)}")
 
-        result = response.json()
+        try:
+            result = response.json()
+        except json.JSONDecodeError:
+            frappe.throw("Failed to parse JSON response from GoodWe API.")
+
+        if not isinstance(result, dict):
+            frappe.throw("Invalid response structure received from GoodWe API.")
 
         if str(result.get("code")) != "0":
             frappe.throw(result.get("msg", "GoodWe API Error"))
 
-        return result["data"]
+        if "data" not in result:
+            frappe.throw("Response missing 'data' field from GoodWe API.")
 
+        return result["data"]
+    
     def get_monitor_detail(self, power_station_id):
         return self.post(
             "/v1/PowerStation/GetMonitorDetailByPowerstationId",

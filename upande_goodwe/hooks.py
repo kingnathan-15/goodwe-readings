@@ -5,11 +5,23 @@ app_description = "GoodWe solar monitoring and energy management integration for
 app_email = "nathan@upande.com"
 app_license = "mit"
 
+fixtures = [
+    {
+        "doctype": "Web Page",
+        "filters": [
+            ["module", "=", "Upande GoodWe Integration"]
+        ]
+    }
+]
+
 
 scheduler_events = {
     "cron": {
         "*/15 * * * *": [
             "upande_goodwe.goodwe.sync.sync_all_stations"
+        ],
+        "0 0 * * *": [
+            "upande.goodwe.goodwe.auth.authenticate"
         ]
     }
 }

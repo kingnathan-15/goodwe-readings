@@ -1,0 +1,364 @@
+{% set active_page = 'monitors' %}
+
+<!-- Load Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<div class="gw-page">
+  
+  {% include "templates/includes/navbar.html" ignore missing %}
+
+  <div class="gw-pagehead">
+    <div>
+      <div class="gw-eyebrow">Upande GoodWe Integration</div>
+      <h1 class="gw-title">GoodWe Monitors</h1>
+      <p class="gw-sub">Real-time system metric aggregations & charts</p>
+    </div>
+
+    <div class="gw-tools">
+      <span class="gw-sync" id="last-sync">Loading...</span>
+      <button class="gw-refresh" id="refresh-btn">↻</button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="gw-kpis">
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Average Power</div>
+      <div class="gw-kpi-value" id="avg-power">—</div>
+      <div class="gw-kpi-unit">kW</div>
+    </div>
+
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Peak Power</div>
+      <div class="gw-kpi-value" id="peak-power">—</div>
+      <div class="gw-kpi-unit">kW</div>
+    </div>
+
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Daily Energy</div>
+      <div class="gw-kpi-value" id="daily-energy">—</div>
+      <div class="gw-kpi-unit">kWh</div>
+    </div>
+
+    <div class="gw-kpi">
+      <div class="gw-kpi-label">Total Energy</div>
+      <div class="gw-kpi-value" id="total-energy">—</div>
+      <div class="gw-kpi-unit">kWh</div>
+    </div>
+  </div>
+
+  <!-- Charts Layout -->
+  <div class="gw-section">
+    <div class="gw-section-head">
+      <div>
+        <div class="gw-section-eyebrow">Analytics</div>
+        <h2>Performance Visualizations</h2>
+      </div>
+    </div>
+
+    <div class="gw-charts-grid">
+      <!-- Full Width: Power Output -->
+      <div class="gw-card gw-chart-full">
+        <div class="gw-card-label">Power Output</div>
+        <div class="gw-chart-container">
+          <canvas id="chart-power-output"></canvas>
+        </div>
+      </div>
+
+      <!-- Half Width: Daily Energy -->
+      <div class="gw-card gw-chart-half">
+        <div class="gw-card-label">Daily Energy</div>
+        <div class="gw-chart-container">
+          <canvas id="chart-daily-energy"></canvas>
+        </div>
+      </div>
+
+      <!-- Half Width: Battery SOC -->
+      <div class="gw-card gw-chart-half">
+        <div class="gw-card-label">Battery SOC</div>
+        <div class="gw-chart-container">
+          <canvas id="chart-battery-soc"></canvas>
+        </div>
+      </div>
+
+      <!-- Half Width: Inverter Temperature -->
+      <div class="gw-card gw-chart-half">
+        <div class="gw-card-label">Inverter Temperature</div>
+        <div class="gw-chart-container">
+          <canvas id="chart-inverter-temp"></canvas>
+        </div>
+      </div>
+
+      <!-- Half Width: Grid Voltage -->
+      <div class="gw-card gw-chart-half">
+        <div class="gw-card-label">Grid Voltage</div>
+        <div class="gw-chart-container">
+          <canvas id="chart-grid-voltage"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+frappe.ready(function () {
+  const REFRESH_INTERVAL = 60000;
+  const chartInstances = {};
+
+  function format(value, decimals = 1) {
+    if (value === null || value === undefined || value === "") return "—";
+    return Number(value).toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    });
+  }
+
+  // Chart.js helper to instantiate/update existing charts
+  function createOrUpdateChart(chartId, config) {
+    if (chartInstances[chartId]) {
+      chartInstances[chartId].destroy();
+    }
+    const ctx = document.getElementById(chartId).getContext('2d');
+    chartInstances[chartId] = new Chart(ctx, config);
+  }
+
+  async function loadDashboard() {
+    try {
+      const response = await frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+          doctype: "GoodWe Reading",
+          fields: [
+            "inverter", "current_power_kw", "daily_energy_kwh", 
+            "total_energy_kwh", "battery_soc", "temp_internal", 
+            "temp_radiator", "temp_ambient", "v_l1", "v_l2", "v_l3",
+            "reading_time", "sync_time"
+          ],
+          order_by: "reading_time desc",
+          limit_page_length: 1000
+        }
+      });
+
+      const readings = response.message || [];
+      if (!readings.length) return;
+
+      // Extract latest record per inverter for top KPIs
+      const latest = {};
+      readings.forEach(r => {
+        if (!latest[r.inverter]) latest[r.inverter] = r;
+      });
+      const devices = Object.values(latest);
+
+      // Top KPI Cards calculation
+      const avgPower = devices.reduce((sum, r) => sum + (Number(r.current_power_kw) || 0), 0) / devices.length;
+      const peakPower = Math.max(...devices.map(r => Number(r.current_power_kw) || 0));
+      const dailyEnergy = Math.max(...devices.map(r => Number(r.daily_energy_kwh) || 0));
+      const totalEnergy = Math.max(...devices.map(r => Number(r.total_energy_kwh) || 0));
+
+      document.getElementById("avg-power").textContent = format(avgPower);
+      document.getElementById("peak-power").textContent = format(peakPower);
+      document.getElementById("daily-energy").textContent = format(dailyEnergy);
+      document.getElementById("total-energy").textContent = format(totalEnergy);
+
+      const latestSync = devices.map(r => r.sync_time).filter(Boolean).sort().reverse()[0];
+      document.getElementById("last-sync").textContent = latestSync 
+        ? "Updated " + frappe.datetime.prettyDate(latestSync) 
+        : "No sync time";
+
+      // Prepare chronological time-series data (limited to last 20 readings for charts)
+      const chronologicalReadings = [...readings].reverse().slice(-20);
+      const timeLabels = chronologicalReadings.map(r => {
+        const t = r.reading_time || r.sync_time;
+        return t ? t.split(" ")[1]?.substring(0, 5) || t : "";
+      });
+
+      // 1. Power Output Chart (Line)
+      createOrUpdateChart("chart-power-output", {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: 'Power Output (kW)',
+            data: chronologicalReadings.map(r => Number(r.current_power_kw) || 0),
+            borderColor: '#7aa23f',
+            backgroundColor: 'rgba(122, 162, 63, 0.12)',
+            fill: true,
+            tension: 0.35,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      // 2. Daily Energy Chart (Bar)
+      createOrUpdateChart("chart-daily-energy", {
+        type: 'bar',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: 'Daily Energy (kWh)',
+            data: chronologicalReadings.map(r => Number(r.daily_energy_kwh) || 0),
+            backgroundColor: '#44631f',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      // 3. Battery SOC Chart (Doughnut)
+      const latestSOC = Number(devices[0]?.battery_soc) || 0;
+      createOrUpdateChart("chart-battery-soc", {
+        type: 'doughnut',
+        data: {
+          labels: ['SOC', 'Remaining'],
+          datasets: [{
+            data: [latestSOC, Math.max(0, 100 - latestSOC)],
+            backgroundColor: ['#7aa23f', 'rgba(10,10,10,0.06)'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '75%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+          }
+        },
+        plugins: [{
+          id: 'textInside',
+          afterDraw: function(chart) {
+            const width = chart.width, height = chart.height, ctx = chart.ctx;
+            ctx.restore();
+            ctx.font = "bold 28px Poppins, sans-serif";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#0a0a0a";
+            const text = latestSOC + "%",
+                  textX = Math.round((width - ctx.measureText(text).width) / 2),
+                  textY = height / 2;
+            ctx.fillText(text, textX, textY);
+            ctx.save();
+          }
+        }]
+      });
+
+      // 4. Inverter Temperature Chart (Multi-line)
+      createOrUpdateChart("chart-inverter-temp", {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [
+            {
+              label: 'Internal (°C)',
+              data: chronologicalReadings.map(r => Number(r.temp_internal) || 0),
+              borderColor: '#c4302b',
+              borderWidth: 2,
+              tension: 0.3
+            },
+            {
+              label: 'Radiator (°C)',
+              data: chronologicalReadings.map(r => Number(r.temp_radiator) || 0),
+              borderColor: '#d9962e',
+              borderWidth: 2,
+              tension: 0.3
+            },
+            {
+              label: 'Ambient (°C)',
+              data: chronologicalReadings.map(r => Number(r.temp_ambient) || 0),
+              borderColor: '#7aa23f',
+              borderWidth: 2,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: false }
+          }
+        }
+      });
+
+      // 5. Grid Voltage Chart (Grouped Bar)
+      const latestVoltages = devices[0] || {};
+      createOrUpdateChart("chart-grid-voltage", {
+        type: 'bar',
+        data: {
+          labels: ['Phase L1', 'Phase L2', 'Phase L3'],
+          datasets: [{
+            label: 'Voltage (V)',
+            data: [
+              Number(latestVoltages.v_l1) || 0,
+              Number(latestVoltages.v_l2) || 0,
+              Number(latestVoltages.v_l3) || 0
+            ],
+            backgroundColor: ['#44631f', '#d9962e', '#c4302b'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { min: 180, max: 260 }
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error("GoodWe Monitors error:", error);
+    }
+  }
+
+  document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
+  loadDashboard();
+  setInterval(loadDashboard, REFRESH_INTERVAL);
+});
+</script>
+
+<style>
+  .gw-page { max-width: 1480px; margin: 0 auto; padding: 48px 40px 80px; color: #2a2a26; font-family: Poppins, -apple-system, sans-serif; }
+  .gw-pagehead { display: flex; justify-content: space-between; align-items: flex-end; gap: 30px; margin-bottom: 36px; }
+  .gw-eyebrow, .gw-section-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #8a8780; margin-bottom: 10px; }
+  .gw-title { margin: 0; font-size: 44px; line-height: 1.05; color: #0a0a0a; letter-spacing: -1.3px; }
+  .gw-sub { margin: 8px 0 0; font-size: 15px; color: #5a5a52; }
+  .gw-tools { display: flex; align-items: center; gap: 10px; }
+  .gw-sync { background: white; border-radius: 999px; padding: 10px 16px; font-size: 12px; color: #5a5a52; box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10); }
+  .gw-refresh { width: 40px; height: 40px; border: 0; border-radius: 50%; background: white; cursor: pointer; font-size: 20px; color: #3a3a34; box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10); }
+  .gw-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .gw-kpi, .gw-card { background: white; border-radius: 20px; padding: 24px 26px; box-shadow: 0 1px 0 rgba(10,10,10,.04), 0 8px 32px -16px rgba(10,10,10,.10); }
+  .gw-kpi-label, .gw-card-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px; color: #8a8780; margin-bottom: 8px; }
+  .gw-kpi-value { display: inline-block; font-size: 34px; font-weight: 600; color: #0a0a0a; font-variant-numeric: tabular-nums; }
+  .gw-kpi-unit { display: inline-block; margin-left: 5px; color: #8a8780; font-size: 13px; }
+  .gw-section { margin-top: 18px; }
+  .gw-section-head { margin-bottom: 16px; }
+  .gw-section-head h2 { margin: 0; font-size: 24px; color: #0a0a0a; }
+  .gw-charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .gw-chart-full { grid-column: 1 / -1; }
+  .gw-chart-container { position: relative; height: 240px; width: 100%; margin-top: 12px; }
+  @media (max-width: 1000px) { .gw-kpis, .gw-charts-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .gw-page { padding: 30px 18px 60px; } .gw-title { font-size: 34px; } .gw-kpis, .gw-charts-grid { grid-template-columns: 1fr; } .gw-chart-full { grid-column: auto; } }
+</style>
