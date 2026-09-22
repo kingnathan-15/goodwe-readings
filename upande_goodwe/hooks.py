@@ -21,9 +21,12 @@ scheduler_events = {
             "upande_goodwe.goodwe.sync.sync_all_stations"
         ],
         "0 0 * * *": [
-            "upande.goodwe.goodwe.auth.authenticate"
+            "upande_goodwe.goodwe.auth.authenticate"
         ]
-    }
+    },
+    "daily": [
+        "upande_goodwe.goodwe.intelligency.generate_daily_summary",
+    ]
 }
 # Apps
 # ------------------

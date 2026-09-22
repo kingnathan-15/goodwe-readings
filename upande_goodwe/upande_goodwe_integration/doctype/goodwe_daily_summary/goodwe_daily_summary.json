@@ -1,0 +1,18 @@
+{
+ "doctype": "DocType",
+ "name": "GoodWe Daily Summary",
+ "module": "Upande GoodWe Integration",
+ "engine": "InnoDB",
+ "autoname": "field:summary_date",
+ "field_order": ["summary_date", "summary_text", "raw_stats"],
+ "fields": [
+  {"fieldname": "summary_date", "fieldtype": "Date", "label": "Summary Date", "unique": 1, "reqd": 1},
+  {"fieldname": "summary_text", "fieldtype": "Small Text", "label": "Summary"},
+  {"fieldname": "raw_stats", "fieldtype": "Long Text", "label": "Raw Stats (JSON)"}
+ ],
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}
+ ],
+ "sort_field": "summary_date",
+ "sort_order": "DESC"
+}
