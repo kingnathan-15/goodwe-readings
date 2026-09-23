@@ -1,3 +1,5 @@
+from typing_extensions import runtime
+
 import frappe
 
 from datetime import datetime
@@ -114,45 +116,40 @@ def sync_readings(site_name, devices, data):
             continue
 
         device = devices_by_serial.get(serial)
-
         if not device:
             continue
 
         runtime = inverter_data.get("d") or {}
+        invert_full = inverter_data.get("invert_full") or {}
 
         reading = frappe.new_doc("GoodWe Reading")
 
-        # Device
+        # Device Link
         reading.inverter = device.name
 
-        # Reading time
+        # Reading Time
         reading.reading_time = (
             parse_goodwe_datetime(inverter_data.get("time"))
-            or parse_goodwe_datetime(
-                inverter_data.get("last_refresh_time")
-            )
+            or parse_goodwe_datetime(inverter_data.get("last_refresh_time"))
             or frappe.utils.now_datetime()
         )
 
-        # Current power
-        output_power = runtime.get("outputpower")
-
-        if output_power is None:
-            output_power = inverter_data.get("output_power")
-
+        # Output / AC Power (Convert W string "9443W" to kW float 9.443)
+        output_power = runtime.get("output_power") or inverter_data.get("output_power")
         if isinstance(output_power, str):
             output_power = output_power.replace("W", "").strip()
-
         if output_power is not None:
             reading.current_power_kw = float(output_power) / 1000
 
-        # Energy
-        reading.daily_energy_kwh = runtime.get("eDay")
-        reading.total_energy_kwh = runtime.get("eTotal")
+        #Calls load power calculation function to determine load power in kW
+        reading.load_power_kw = get_load_power_kw(inverter_data, runtime)
 
-        # Grid
+        # Daily & Total Energy Generation (Stored at top level of inverter dict)
+        reading.daily_energy_kwh = inverter_data.get("eday")
+        reading.total_energy_kwh = inverter_data.get("etotal")
+
+        # Grid Power & Metrics
         pac = runtime.get("pac")
-
         if pac is not None:
             reading.grid_power_kw = float(pac) / 1000
 
@@ -160,65 +157,47 @@ def sync_readings(site_name, devices, data):
         reading.grid_frequency_hz = runtime.get("fac1")
         reading.grid_current_a = runtime.get("iac1")
 
-        # PV
+        # PV Inputs
         reading.pv1_voltage_v = runtime.get("vpv1")
         reading.pv1_current_a = runtime.get("ipv1")
-
         reading.pv2_voltage_v = runtime.get("vpv2")
         reading.pv2_current_a = runtime.get("ipv2")
 
-        # Battery
-        battery_soc = (
-            inverter_data.get("invert_full", {}).get("soc")
-            if inverter_data.get("invert_full")
-            else None
-        )
-
-        if battery_soc is None:
-            battery_soc = inverter_data.get("soc")
-
+        # Battery State of Charge (SOC)
+        battery_soc = inverter_data.get("soc") or invert_full.get("soc")
         if isinstance(battery_soc, str):
             battery_soc = battery_soc.replace("%", "").strip()
-
         if battery_soc is not None:
             reading.battery_soc = float(battery_soc)
 
+        # Battery Power (Convert W to kW)
         battery_power = inverter_data.get("battery_power")
-
         if battery_power is not None:
             reading.battery_power_kw = float(battery_power) / 1000
 
-        # Inverter
+        # Inverter Temperature & Power Factor
         reading.inverter_temperature_c = (
-            inverter_data.get("tempperature")
+            invert_full.get("tempperature") or inverter_data.get("tempperature")
         )
+        reading.power_factor = invert_full.get("pf")
 
-        reading.status = normalize_status(
-            inverter_data.get("status")
-        )
+        # Status & Modes
+        raw_status = invert_full.get("grid_conn_status") or inverter_data.get("status")
+        reading.status = normalize_status(raw_status)
+        reading.work_mode = inverter_data.get("bms_status") or runtime.get("workmode")
 
-        reading.work_mode = (
-            runtime.get("workmode")
-            or runtime.get("work_mode")
-        )
-
-        # Warning / error
+        # Error / Warning Codes
         reading.error_code = (
             inverter_data.get("warning_code")
             or runtime.get("warning")
         )
 
-        # Sync information
+        # Sync Information
         reading.api_timestamp = frappe.utils.now()
         reading.sync_time = frappe.utils.now()
-
-        # Preserve raw inverter response
-        reading.raw_response = frappe.as_json(
-            inverter_data
-        )
+        reading.raw_response = frappe.as_json(inverter_data)
 
         reading.insert(ignore_permissions=True)
-
         readings.append(reading)
 
     return readings
@@ -239,10 +218,15 @@ def normalize_status(status):
             "1": "Online",
             "0": "Offline",
             "online": "Online",
-            "running": "Running",
+            "running": "Online",
+            "generating_on_grid": "Online",
+            "generating": "Online",
+            "normal": "Online",
             "offline": "Offline",
             "fault": "Fault",
-            "standby": "Standby",
+            "error": "Fault",
+            "standby": "Online",
+            "wait": "Online",
             "warning": "Warning",
         }
 
@@ -300,3 +284,32 @@ def parse_goodwe_datetime(value):
             continue
 
     return None
+
+def get_load_power_kw(inverter_data, runtime):
+    """
+    Calculates Load Power in kW from GoodWe SEMS telemetry payload.
+    Falls back to energy balance (PV + Battery) if explicit load key is missing/zero.
+    """
+    explicit_load = runtime.get("load_power") or runtime.get("pload")
+    if explicit_load is not None and float(explicit_load) > 0:
+        return float(explicit_load) / 1000
+
+    vpv1 = float(runtime.get("vpv1") or 0)
+    ipv1 = float(runtime.get("ipv1") or 0)
+    vpv2 = float(runtime.get("vpv2") or 0)
+    ipv2 = float(runtime.get("ipv2") or 0)
+    pv_power_w = (vpv1 * ipv1) + (vpv2 * ipv2)
+
+    battery_power_w = float(inverter_data.get("battery_power") or 0)
+
+    raw_output = runtime.get("output_power") or inverter_data.get("output_power") or "0"
+    if isinstance(raw_output, str):
+        raw_output = raw_output.replace("W", "").strip()
+    output_power_w = float(raw_output or 0)
+
+    computed_load_w = pv_power_w + battery_power_w
+
+    if computed_load_w <= 0 and output_power_w > 0:
+        computed_load_w = output_power_w
+
+    return max(0.0, float(computed_load_w) / 1000)
