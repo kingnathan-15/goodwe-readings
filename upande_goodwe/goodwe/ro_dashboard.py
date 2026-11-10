@@ -11,8 +11,12 @@ LOG_DOCTYPE = "RO Daily Log"
 LOG_FIELDS = [
 	"name", "site", "log_date", "borehole_meter", "smart_meter",
 	"permeate_m3", "reject_m3", "units_sold", "rw_tank_level", "tw_tank_level", "notes",
+	"modified", "modified_by",
 ]
-EDITABLE_FIELDS = [f for f in LOG_FIELDS if f not in ("name", "site", "log_date")]
+EDITABLE_FIELDS = [
+	"borehole_meter", "smart_meter", "permeate_m3", "reject_m3",
+	"units_sold", "rw_tank_level", "tw_tank_level", "notes",
+]
 
 
 @frappe.whitelist()
@@ -99,7 +103,10 @@ def get_hourly_solar_profile(days=14):
 
 @frappe.whitelist(methods=["POST"])
 def save_ro_log(data):
-	"""Create or update the log for (site, log_date). Permissions are enforced by doc.save()."""
+	"""Create or update the log for (site, log_date). Permissions are enforced by doc.save().
+
+	When editing, pass `expected_modified` (the `modified` value the page loaded) so an edit
+	made by someone else in the meantime isn't silently overwritten."""
 	data = frappe.parse_json(data) if isinstance(data, str) else frappe._dict(data)
 	site, log_date = data.get("site"), data.get("log_date")
 	if not site or not log_date:
@@ -107,6 +114,15 @@ def save_ro_log(data):
 
 	name = frappe.db.get_value(LOG_DOCTYPE, {"site": site, "log_date": getdate(log_date)})
 	doc = frappe.get_doc(LOG_DOCTYPE, name) if name else frappe.new_doc(LOG_DOCTYPE)
+
+	expected = data.get("expected_modified")
+	if name and expected and str(doc.modified) != str(expected):
+		frappe.throw(
+			_("{0} changed this day after you opened it. Reopen the day to see their values.").format(
+				frappe.utils.get_fullname(doc.modified_by)
+			),
+			title=_("Edited by someone else"),
+		)
 	if not name:
 		doc.site = site
 		doc.log_date = getdate(log_date)
