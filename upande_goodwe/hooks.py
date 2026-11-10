@@ -24,6 +24,9 @@ scheduler_events = {
             "upande_goodwe.goodwe.auth.authenticate"
         ]
     },
+    "hourly": [
+        "upande_goodwe.goodwe.health.run_scheduled_checks",
+    ],
     "daily": [
         "upande_goodwe.goodwe.intelligency.generate_daily_summary",
     ]

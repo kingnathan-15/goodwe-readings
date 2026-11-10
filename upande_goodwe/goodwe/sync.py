@@ -1,15 +1,28 @@
-from typing_extensions import runtime
-
 import frappe
 
 from datetime import datetime
+from upande_goodwe.goodwe.auth import authenticate
 from upande_goodwe.goodwe.client import GoodWeClient
+from upande_goodwe.goodwe import health
+
+AUTH_ERROR_HINTS = ("authoriz", "expired", "log in again", "login", "token")
+
+
+def _fetch_monitor_detail(power_station_id):
+    """Fetches station data, logging in again once if the session has expired."""
+    try:
+        return GoodWeClient().get_monitor_detail(power_station_id)
+    except frappe.ValidationError as e:
+        if not any(h in str(e).lower() for h in AUTH_ERROR_HINTS):
+            raise
+        frappe.clear_messages()
+        authenticate()
+        return GoodWeClient().get_monitor_detail(power_station_id)
+
 
 @frappe.whitelist()
 def sync_station(power_station_id):
-    client = GoodWeClient()
-
-    data = client.get_monitor_detail(power_station_id)
+    data = _fetch_monitor_detail(power_station_id)
 
     site = sync_site(data)
 
@@ -19,10 +32,19 @@ def sync_station(power_station_id):
 
     frappe.db.commit()
 
+    # Health check must never break the sync itself.
+    frozen = None
+    try:
+        frozen = health.check_frozen()
+        frappe.db.commit()
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "GoodWe health check failed")
+
     return {
         "site": site.name,
         "devices": len(devices),
         "readings": len(readings),
+        "frozen_inverters": [f["inverter"] for f in frozen] if frozen else [],
         "status": "Success",
     }
 
@@ -127,12 +149,13 @@ def sync_readings(site_name, devices, data):
         # Device Link
         reading.inverter = device.name
 
-        # Reading Time
-        reading.reading_time = (
-            parse_goodwe_datetime(inverter_data.get("time"))
-            or parse_goodwe_datetime(inverter_data.get("last_refresh_time"))
-            or frappe.utils.now_datetime()
-        )
+        # Reading Time: always the time we fetched it. GoodWe's own time can be hours or
+        # days old when the inverter stops reporting, and its date order is ambiguous,
+        # so it is kept separately in goodwe_time for checking.
+        reading.reading_time = frappe.utils.now_datetime()
+        reading.goodwe_time = str(
+            inverter_data.get("time") or inverter_data.get("last_refresh_time") or ""
+        )[:140] or None
 
         # Output / AC Power (Convert W string "9443W" to kW float 9.443)
         output_power = runtime.get("output_power") or inverter_data.get("output_power")
@@ -195,7 +218,7 @@ def sync_readings(site_name, devices, data):
         # Sync Information
         reading.api_timestamp = frappe.utils.now()
         reading.sync_time = frappe.utils.now()
-        reading.raw_response = frappe.as_json(inverter_data)
+        reading.error_message = frappe.as_json(inverter_data)  # field labelled "Raw Response"
 
         reading.insert(ignore_permissions=True)
         readings.append(reading)
@@ -247,6 +270,7 @@ def normalize_device_status(status):
     except (TypeError, ValueError):
         return "Offline"
 
+@frappe.whitelist()
 def sync_all_stations():
     stations = frappe.get_all(
         "Solar Site",
@@ -259,12 +283,17 @@ def sync_all_stations():
     for station in stations:
         try:
             sync_station(station.station_id)
+            health.record_sync_result(station.name, ok=True)
 
         except Exception:
-            frappe.log_error(
-                frappe.get_traceback(),
-                f"GoodWe sync failed: {station.name}"
-            )
+            frappe.db.rollback()
+            error = frappe.get_traceback()
+            frappe.log_error(error, f"GoodWe sync failed: {station.name}")
+            try:
+                health.record_sync_result(station.name, ok=False, error=error)
+                frappe.db.commit()
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), "GoodWe alert failed")
 
 def parse_goodwe_datetime(value):
     if not value:

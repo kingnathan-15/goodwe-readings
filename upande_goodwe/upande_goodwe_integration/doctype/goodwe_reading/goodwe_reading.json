@@ -35,6 +35,8 @@
   "section_break_pbjl",
   "api_timestamp",
   "sync_time",
+  "goodwe_time",
+  "is_stale",
   "error_message"
  ],
  "fields": [
@@ -205,12 +207,28 @@
    "fieldtype": "Datetime",
    "label": "Sync Time",
    "read_only": 1
+  },
+  {
+   "fieldname": "goodwe_time",
+   "fieldtype": "Data",
+   "label": "GoodWe Update Time",
+   "read_only": 1,
+   "description": "Time reported by GoodWe for this data, as received. Old values here mean the data wasn't fresh."
+  },
+  {
+   "fieldname": "is_stale",
+   "fieldtype": "Check",
+   "label": "Stale Data",
+   "read_only": 1,
+   "default": "0",
+   "in_standard_filter": 1,
+   "description": "Set when the lifetime energy counter stopped changing during daylight (frozen data from GoodWe)."
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-17 12:17:31.015317",
+ "modified": "2026-11-10 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Upande GoodWe Integration",
  "name": "GoodWe Reading",

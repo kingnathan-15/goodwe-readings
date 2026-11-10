@@ -28,11 +28,7 @@ class GoodWeClient:
 
         if payload is None:
             payload = {}
-        print("========== GOODWE REQUEST ==========")
-        print("URL:", f"{self.base_url}/{endpoint.lstrip('/')}")
-        print("HEADERS:", self.headers)
-        print("PAYLOAD:", payload)
-        print("====================================")
+        # Don't log headers: they contain the session token.
 
         try:
             response = requests.post(
