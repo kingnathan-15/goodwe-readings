@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:RO-{site}-{log_date}",
+ "creation": "2026-11-10 09:00:00.000000",
+ "description": "Daily borehole, RO plant and sales readings, entered from the Solar & Water Plant dashboard",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "day_section",
+  "site",
+  "log_date",
+  "column_break_day",
+  "logged_by",
+  "meters_section",
+  "borehole_meter",
+  "column_break_meters",
+  "smart_meter",
+  "ro_section",
+  "permeate_m3",
+  "column_break_ro",
+  "reject_m3",
+  "sales_section",
+  "units_sold",
+  "column_break_sales",
+  "rw_tank_level",
+  "tw_tank_level",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "day_section",
+   "fieldtype": "Section Break",
+   "label": "Day"
+  },
+  {
+   "fieldname": "site",
+   "fieldtype": "Select",
+   "label": "Site",
+   "options": "VV\nYamin",
+   "reqd": 1,
+   "default": "VV",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "log_date",
+   "fieldtype": "Date",
+   "label": "Log Date",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "The day the water was used. Meters are read the next morning."
+  },
+  {
+   "fieldname": "column_break_day",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "logged_by",
+   "fieldtype": "Link",
+   "label": "Logged By",
+   "options": "User",
+   "default": "__user",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meters_section",
+   "fieldtype": "Section Break",
+   "label": "Meter Readings (cumulative)"
+  },
+  {
+   "fieldname": "borehole_meter",
+   "fieldtype": "Float",
+   "label": "Borehole Meter Reading",
+   "precision": "2",
+   "in_list_view": 1,
+   "description": "Mechanical borehole meter, cumulative m³"
+  },
+  {
+   "fieldname": "column_break_meters",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "smart_meter",
+   "fieldtype": "Float",
+   "label": "Smart Meter Reading",
+   "precision": "2",
+   "depends_on": "eval:doc.site=='VV'",
+   "description": "Ubuntu ultrasonic smart meter, cumulative m³"
+  },
+  {
+   "fieldname": "ro_section",
+   "fieldtype": "Section Break",
+   "label": "RO Plant (daily volumes)",
+   "depends_on": "eval:doc.site=='VV'"
+  },
+  {
+   "fieldname": "permeate_m3",
+   "fieldtype": "Float",
+   "label": "Permeate to Estate",
+   "precision": "2",
+   "description": "Booster pump / estate meter, m³ for the day"
+  },
+  {
+   "fieldname": "column_break_ro",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reject_m3",
+   "fieldtype": "Float",
+   "label": "Reject Water",
+   "precision": "2",
+   "description": "Reject meter, m³ for the day"
+  },
+  {
+   "fieldname": "sales_section",
+   "fieldtype": "Section Break",
+   "label": "Sales and Storage"
+  },
+  {
+   "fieldname": "units_sold",
+   "fieldtype": "Float",
+   "label": "Units Sold",
+   "precision": "2",
+   "in_list_view": 1,
+   "description": "m³ billed for the day"
+  },
+  {
+   "fieldname": "column_break_sales",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rw_tank_level",
+   "fieldtype": "Percent",
+   "label": "Raw Water Tank Level"
+  },
+  {
+   "fieldname": "tw_tank_level",
+   "fieldtype": "Percent",
+   "label": "Treated Water Tank Level"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-10 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande GoodWe Integration",
+ "name": "RO Daily Log",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "log_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "log_date",
+ "track_changes": 1
+}
