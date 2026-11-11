@@ -440,6 +440,58 @@ def normalize_device_status(status):
         )
 
 @frappe.whitelist()
+def initialize_site():
+    """Authenticates, discovers all stations from GoodWe, then syncs each one.
+    For SEMS+: fetches the station list directly from the API.
+    For Classic: falls back to Solar Sites that already have a station_id set."""
+    from upande_goodwe.goodwe.auth import authenticate, get_platform
+    from upande_goodwe.goodwe.sems_plus import SemsPlusClient, SemsPlusError
+
+    authenticate()
+
+    if get_platform() == "SEMS+":
+        try:
+            station_ids = SemsPlusClient().list_stations()
+        except SemsPlusError as exc:
+            frappe.throw(f"Could not retrieve station list from SEMS+: {exc}")
+        if not station_ids:
+            frappe.throw(
+                "No stations found in this GoodWe account. "
+                "Confirm the account has at least one registered power station."
+            )
+    else:
+        rows = frappe.get_all(
+            "Solar Site",
+            filters={"station_id": ["is", "set"]},
+            fields=["station_id"],
+        )
+        station_ids = [r.station_id for r in rows]
+        if not station_ids:
+            frappe.throw(
+                "No Solar Sites with a station_id found. "
+                "Create a Solar Site and set its Station ID to begin syncing."
+            )
+
+    results, failed_sites = [], []
+    for station_id in station_ids:
+        try:
+            result = sync_station(station_id)
+            results.append(result)
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(frappe.get_traceback(), f"GoodWe initialize failed: {station_id}")
+            failed_sites.append(station_id)
+
+    return {
+        "status": "done",
+        "synced": len(results),
+        "failed": len(failed_sites),
+        "failed_sites": failed_sites,
+        "devices": sum(r.get("devices", 0) for r in results),
+    }
+
+
+@frappe.whitelist()
 def sync_all_stations():
     stations = frappe.get_all(
         "Solar Site",

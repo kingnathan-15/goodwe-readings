@@ -226,6 +226,29 @@ class SemsPlusClient:
                     device["errors"].append(f"{endpoint}: {exc}")
         return {"station_id": station_id, "flow": flow, "devices": devices}
 
+    def list_stations(self, page=0, size=100):
+        """Returns a list of station IDs registered to this account.
+        Uses the SEMS+ paginated station endpoint; response shape may vary by account tier."""
+        data = self.request(
+            "/sems-plant/api/stations/page",
+            method="POST",
+            payload={"pageIndex": page, "pageSize": size},
+        )
+        items = (
+            data if isinstance(data, list)
+            else (data.get("list") or data.get("stations") or data.get("data") or [])
+            if isinstance(data, dict)
+            else []
+        )
+        station_ids = []
+        for s in items:
+            if not isinstance(s, dict):
+                continue
+            sid = s.get("powerStationId") or s.get("stationId") or s.get("id")
+            if sid:
+                station_ids.append(str(sid))
+        return station_ids
+
     def daily_production(self, station_id, day):
         """PV energy (kWh) the station generated on `day` (date or YYYY-MM-DD), as SEMS+ shows it.
         Returns None if SEMS+ has no figure for that day."""
