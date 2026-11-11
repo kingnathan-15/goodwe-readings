@@ -25,6 +25,9 @@
   "column_break_sales",
   "rw_tank_level",
   "tw_tank_level",
+  "energy_section",
+  "kplc_kwh",
+  "column_break_energy",
   "notes_section",
   "notes"
  ],
@@ -141,6 +144,22 @@
    "fieldname": "tw_tank_level",
    "fieldtype": "Percent",
    "label": "Treated Water Tank Level"
+  },
+  {
+   "fieldname": "energy_section",
+   "fieldtype": "Section Break",
+   "label": "Energy"
+  },
+  {
+   "fieldname": "kplc_kwh",
+   "fieldtype": "Float",
+   "label": "KPLC Units (kWh)",
+   "precision": "2",
+   "description": "Grid energy consumed from KPLC for the day, read from the KPLC meter"
+  },
+  {
+   "fieldname": "column_break_energy",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "notes_section",

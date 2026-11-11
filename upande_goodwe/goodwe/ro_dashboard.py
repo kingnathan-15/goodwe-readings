@@ -10,12 +10,12 @@ from upande_goodwe.goodwe.energy import fleet_daily_energy
 LOG_DOCTYPE = "RO Daily Log"
 LOG_FIELDS = [
 	"name", "site", "log_date", "borehole_meter", "smart_meter",
-	"permeate_m3", "reject_m3", "units_sold", "rw_tank_level", "tw_tank_level", "notes",
+	"permeate_m3", "reject_m3", "units_sold", "kplc_kwh", "rw_tank_level", "tw_tank_level", "notes",
 	"modified", "modified_by",
 ]
 EDITABLE_FIELDS = [
 	"borehole_meter", "smart_meter", "permeate_m3", "reject_m3",
-	"units_sold", "rw_tank_level", "tw_tank_level", "notes",
+	"units_sold", "kplc_kwh", "rw_tank_level", "tw_tank_level", "notes",
 ]
 
 

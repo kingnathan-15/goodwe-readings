@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "creation": "2026-11-11 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "excel_file",
+  "section_options",
+  "overwrite",
+  "column_break_options",
+  "dry_run",
+  "section_result",
+  "last_run",
+  "column_break_result",
+  "last_summary",
+  "section_counts",
+  "created_count",
+  "skipped_count",
+  "column_break_counts",
+  "updated_count",
+  "error_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "excel_file",
+   "fieldtype": "Attach",
+   "label": "Excel File",
+   "reqd": 1,
+   "description": "Attach the RO efficiency tracking workbook (.xlsx). Sheets 'VV' and 'Yamin' are imported."
+  },
+  {
+   "fieldname": "section_options",
+   "fieldtype": "Section Break",
+   "label": "Options"
+  },
+  {
+   "fieldname": "overwrite",
+   "fieldtype": "Check",
+   "label": "Overwrite existing values",
+   "default": "0",
+   "description": "If unchecked, only fields that are currently blank are filled in."
+  },
+  {
+   "fieldname": "column_break_options",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dry_run",
+   "fieldtype": "Check",
+   "label": "Dry run (preview only)",
+   "default": "0",
+   "description": "Count what would be created/updated without saving anything."
+  },
+  {
+   "fieldname": "section_result",
+   "fieldtype": "Section Break",
+   "label": "Last Run"
+  },
+  {
+   "fieldname": "last_run",
+   "fieldtype": "Datetime",
+   "label": "Run At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_result",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_summary",
+   "fieldtype": "Small Text",
+   "label": "Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_counts",
+   "fieldtype": "Section Break",
+   "label": "Counts"
+  },
+  {
+   "fieldname": "created_count",
+   "fieldtype": "Int",
+   "label": "Created",
+   "read_only": 1
+  },
+  {
+   "fieldname": "skipped_count",
+   "fieldtype": "Int",
+   "label": "Skipped",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_counts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "updated_count",
+   "fieldtype": "Int",
+   "label": "Updated",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_count",
+   "fieldtype": "Int",
+   "label": "Errors",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-11 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande GoodWe Integration",
+ "name": "RO Log Import",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

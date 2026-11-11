@@ -9,6 +9,8 @@ short. The lifetime counter only ever goes up, so
 is correct as long as there is one reading on the day and one before it.
 """
 
+import json
+
 import frappe
 from frappe.utils import add_days, flt, getdate
 
@@ -97,12 +99,39 @@ def official_daily_energy(from_date, to_date):
     return {d: {"kwh": v["kwh"], "source": ", ".join(sorted(v["sources"]))} for d, v in out.items()}
 
 
+def daily_summary_energy(from_date, to_date):
+    """{date_str: {"kwh": fleet total, "source": "Daily Summary"}} from GoodWe Daily Summary.
+    Used as a last-resort fallback when neither readings nor official daily totals are available."""
+    if not frappe.db.table_exists("GoodWe Daily Summary"):
+        return {}
+    rows = frappe.get_all(
+        "GoodWe Daily Summary",
+        filters={"summary_date": ["between", [getdate(from_date), getdate(to_date)]]},
+        fields=["summary_date", "raw_stats"],
+    )
+    out = {}
+    for r in rows:
+        if not r.raw_stats:
+            continue
+        try:
+            stats = json.loads(r.raw_stats) if isinstance(r.raw_stats, str) else r.raw_stats
+        except (ValueError, TypeError):
+            continue
+        kwh = stats.get("fleet_daily_energy_kwh")
+        if kwh is not None:
+            try:
+                out[str(r.summary_date)] = {"kwh": round(float(kwh), 2), "source": "Daily Summary"}
+            except (TypeError, ValueError):
+                pass
+    return out
+
+
 def fleet_daily_energy(from_date, to_date):
     """Returns {date_str: {"kwh", "live", "source", "inverters"}} per day.
 
-    Official daily totals (GoodWe Daily Energy) win where they exist; otherwise the total of
-    live inverters from the lifetime counters ("Readings"). Frozen days without an official
-    total have kwh None and live False."""
+    Priority: (1) official daily totals from GoodWe Daily Energy, (2) live inverter totals
+    from lifetime counters ("Readings"), (3) GoodWe Daily Summary for days with no data at all.
+    Frozen days with no official total and no daily summary have kwh None and live False."""
     per_inv = daily_energy_by_inverter(from_date, to_date)
     days = {}
     for inv, by_day in per_inv.items():
@@ -118,4 +147,10 @@ def fleet_daily_energy(from_date, to_date):
         day["kwh"] = off["kwh"]
         day["live"] = True
         day["source"] = off["source"]
+    for d, summ in daily_summary_energy(from_date, to_date).items():
+        if d not in days or days[d]["kwh"] is None:
+            day = days.setdefault(d, {"kwh": None, "live": False, "source": "Readings", "inverters": {}})
+            day["kwh"] = summ["kwh"]
+            day["live"] = True
+            day["source"] = summ["source"]
     return days
