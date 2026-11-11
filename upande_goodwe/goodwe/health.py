@@ -335,3 +335,16 @@ def reset_alerts():
     frappe.only_for("System Manager")
     _save_state({})
     return "Alert state cleared"
+
+
+@frappe.whitelist()
+def run_health_check_and_save():
+    """Runs check_now and persists the result into GoodWe Credentials for display on the form."""
+    frappe.only_for("System Manager")
+    result = check_now()
+    frappe.db.set_single_value("GoodWe Credentials", {
+        "last_health_check": now_datetime(),
+        "health_data": frappe.as_json(result, indent=2),
+    })
+    frappe.db.commit()
+    return result
