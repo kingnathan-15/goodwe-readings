@@ -28,6 +28,7 @@ MIN_READINGS_IN_WINDOW = 6        # need this many readings in the window to jud
 FAILURES_BEFORE_ALERT = 2         # consecutive failed syncs (15 min apart) before alerting
 NO_SYNC_MINUTES = 45              # no readings for this long = sync stopped
 REMIND_HOURS = 12                 # repeat an open alert this often
+DATA_AGE_HOURS = 2                # a reading older than this is marked stale
 
 STATE_KEY = "goodwe_alert_state"
 
@@ -211,8 +212,9 @@ def _apply_frozen(frozen, mark_readings=True):
             {STALE_HOURS} hours of daylight, so readings show 0 kWh and 0 kW even if the plant is producing.</p>
             <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
             <tr><th>Inverter</th><th>Lifetime kWh (stuck at)</th><th>Not changing since</th></tr>{rows}</table>
-            <p><b>Check:</b> compare with SEMS+ (semsplus / plus.goodwe.com). If SEMS+ shows live data, the
-            plant has likely been moved off the old SEMS Portal API that this integration reads.</p>
+            <p><b>Check:</b> compare with the SEMS+ website (semsplus.goodwe.com). If SEMS+ shows live data,
+            check API Platform in GoodWe Credentials is set to SEMS+, and run
+            <code>upande_goodwe.goodwe.sems_plus.inspect_station</code> to see what the API returns.</p>
             {_footer()}
             """,
         )
@@ -244,8 +246,8 @@ def record_sync_result(station, ok, error=None):
             <p>The GoodWe sync for station <b>{station}</b> has failed {counts[station]} times in a row
             (every 15 minutes). No new readings are being saved.</p>
             <p><b>Last error:</b></p><pre style="white-space:pre-wrap">{frappe.utils.escape_html((error or '')[-2000:])}</pre>
-            <p>Common causes: GoodWe login expired or password changed (see GoodWe Credentials),
-            GoodWe API down, or the plant moved to SEMS+.</p>
+            <p>Common causes: GoodWe password changed (see GoodWe Credentials), SEMS+ rate limit,
+            GoodWe API down or changed (SEMS+ has no published API), or the wrong API Platform selected.</p>
             {_footer()}
             """,
         )

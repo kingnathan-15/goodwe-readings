@@ -1,11 +1,28 @@
 import frappe
 
 from datetime import datetime
-from upande_goodwe.goodwe.auth import authenticate
+from upande_goodwe.goodwe.auth import authenticate, get_platform
 from upande_goodwe.goodwe.client import GoodWeClient
 from upande_goodwe.goodwe import health
+from upande_goodwe.goodwe.sems_plus import SemsPlusClient, SemsPlusError
 
 AUTH_ERROR_HINTS = ("authoriz", "expired", "log in again", "login", "token")
+
+# SEMS+ factor codes -> GoodWe Reading fields: (candidate codes, scale).
+# Only codes confirmed by pygoodwe are listed. Run sems_plus.inspect_station to see every
+# code your inverters send and add more here (e.g. PV voltages and currents).
+SEMS_PLUS_TELEMETRY_MAP = {
+    "current_power_kw": (("pAc",), 1),            # kW
+    "grid_voltage_v": (("Vac", "PHASE-A:Vac"), 1),
+    "inverter_temperature_c": (("Temperature",), 1),
+    "battery_soc": (("soc",), 1),
+}
+SEMS_PLUS_COUNTER_MAP = {
+    "daily_energy_kwh": (("proPvStatsToday",), 1),   # PV generation today, kWh
+    "total_energy_kwh": (("proPvStatsTotal",), 1),   # PV generation lifetime, kWh
+}
+# Device detail keys that may hold the time GoodWe last received data (format unconfirmed).
+SEMS_PLUS_TIME_KEYS = ("lastRefreshTime", "lastUpdateTime", "updateTime", "dataTime", "reportTime")
 
 
 def _fetch_monitor_detail(power_station_id):
@@ -22,13 +39,15 @@ def _fetch_monitor_detail(power_station_id):
 
 @frappe.whitelist()
 def sync_station(power_station_id):
-    data = _fetch_monitor_detail(power_station_id)
-
-    site = sync_site(data)
-
-    devices = sync_devices(site.name, data)
-
-    readings = sync_readings(site.name, devices, data)
+    """Syncs one station from SEMS+ (default) or the classic SEMS Portal,
+    depending on API Platform in GoodWe Credentials."""
+    if get_platform() == "SEMS+":
+        site, devices, readings = _sync_station_sems_plus(power_station_id)
+    else:
+        data = _fetch_monitor_detail(power_station_id)
+        site = sync_site(data)
+        devices = sync_devices(site.name, data)
+        readings = sync_readings(site.name, devices, data)
 
     frappe.db.commit()
 
@@ -45,8 +64,147 @@ def sync_station(power_station_id):
         "devices": len(devices),
         "readings": len(readings),
         "frozen_inverters": [f["inverter"] for f in frozen] if frozen else [],
+        "platform": get_platform(),
         "status": "Success",
     }
+
+
+# ---------------------------------------------------------------------------
+# SEMS+
+# ---------------------------------------------------------------------------
+
+def _num(value):
+    try:
+        return float(value) if value not in (None, "", "--") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _pick(factors, mapping, target):
+    codes, scale = mapping[target]
+    for code in codes:
+        value = _num(factors.get(code))
+        if value is not None:
+            return value * scale
+    return None
+
+
+def _sync_station_sems_plus(power_station_id):
+    try:
+        snapshot = SemsPlusClient().station_snapshot(power_station_id)
+    except SemsPlusError as exc:
+        frappe.throw(f"SEMS+ sync failed ({exc.kind}): {exc}")
+
+    devices_ok = [d for d in snapshot["devices"] if d["telemetry"] or d["counters"]]
+    if not devices_ok:
+        errors = "; ".join(e for d in snapshot["devices"] for e in d["errors"])
+        frappe.throw(f"SEMS+ returned no telemetry or counters for any inverter: {errors}")
+
+    site = _sync_site_sems_plus(power_station_id, snapshot)
+    devices = _sync_devices_sems_plus(site.name, snapshot)
+    readings = _sync_readings_sems_plus(devices, snapshot)
+    return site, devices, readings
+
+
+def _sync_site_sems_plus(station_id, snapshot):
+    if frappe.db.exists("Solar Site", station_id):
+        doc = frappe.get_doc("Solar Site", station_id)
+    else:
+        doc = frappe.new_doc("Solar Site")
+        doc.name = station_id
+        doc.station_id = station_id
+
+    statuses = [normalize_status(d.get("status")) for d in snapshot["devices"]]
+    producing = any((_num(d["telemetry"].get("pAc")) or 0) > 0 for d in snapshot["devices"])
+    if "Online" in statuses or producing:
+        doc.status = "Running"
+    else:
+        doc.status = "Fault" if "Fault" in statuses else "Offline"
+    doc.last_sync = frappe.utils.now()
+    doc.notes = frappe.as_json({
+        "platform": "SEMS+",
+        "flow": snapshot["flow"],
+        "devices": [{"sn": d["sn"], "status": d["status"], "deviceType": d["deviceType"]} for d in snapshot["devices"]],
+    })
+    doc.save(ignore_permissions=True)
+    return doc
+
+
+def _sync_devices_sems_plus(site_name, snapshot):
+    devices = []
+    for d in snapshot["devices"]:
+        serial = d["sn"]
+        if frappe.db.exists("GoodWe Device", serial):
+            doc = frappe.get_doc("GoodWe Device", serial)
+        else:
+            doc = frappe.new_doc("GoodWe Device")
+            doc.device_id = serial
+            doc.serial_number = serial
+        detail = d.get("detail") or {}
+        doc.solar_site = site_name
+        doc.device_name = detail.get("name") or doc.device_name or serial
+        doc.device_type = "Inverter"
+        doc.model = detail.get("model") or detail.get("modelType") or doc.model
+        doc.status = normalize_device_status(d.get("status"))
+        if normalize_status(d.get("status")) == "Unknown" and (d["telemetry"] or d["counters"]):
+            doc.status = "Online"  # unrecognised SEMS+ status text, but data is arriving
+        doc.save(ignore_permissions=True)
+        devices.append(doc)
+    return devices
+
+
+def _sync_readings_sems_plus(devices, snapshot):
+    """One GoodWe Reading per inverter. Station-level power flow (grid, load, battery) isn't
+    available per inverter in SEMS+, so it is split equally between the inverters: totals
+    across inverters stay correct and per-inverter averages stay comparable with before."""
+    flow = snapshot["flow"]
+    by_serial = {d.serial_number: d for d in devices}
+    count = len(snapshot["devices"]) or 1
+    now = frappe.utils.now_datetime()
+    readings = []
+
+    for d in snapshot["devices"]:
+        device = by_serial.get(d["sn"])
+        if not device:
+            continue
+        telemetry, counters, detail = d["telemetry"], d["counters"], d.get("detail") or {}
+
+        reading = frappe.new_doc("GoodWe Reading")
+        reading.inverter = device.name
+        reading.reading_time = now
+
+        for field in SEMS_PLUS_TELEMETRY_MAP:
+            reading.set(field, _pick(telemetry, SEMS_PLUS_TELEMETRY_MAP, field))
+        for field in SEMS_PLUS_COUNTER_MAP:
+            reading.set(field, _pick(counters, SEMS_PLUS_COUNTER_MAP, field))
+
+        if reading.battery_soc is None:
+            reading.battery_soc = _num(flow.get("soc"))
+        for field, code in (("grid_power_kw", "pGrid"), ("load_power_kw", "pConsum"), ("battery_power_kw", "pBat")):
+            value = _num(flow.get(code))
+            if value is not None:
+                reading.set(field, value / count)
+
+        data_time = next((detail[k] for k in SEMS_PLUS_TIME_KEYS if isinstance(detail.get(k), str)), None)
+        reading.goodwe_time = data_time[:140] if data_time else None
+        parsed = parse_goodwe_datetime(data_time)
+        if parsed and frappe.utils.time_diff_in_hours(now, parsed) > health.DATA_AGE_HOURS:
+            reading.is_stale = 1
+
+        reading.status = normalize_status(d.get("status"))
+        reading.error_code = "; ".join(d["errors"])[:140] or None
+        reading.api_timestamp = frappe.utils.now()
+        reading.sync_time = frappe.utils.now()
+        reading.error_message = frappe.as_json({  # field labelled "Raw Response"
+            "platform": "SEMS+",
+            "device": d,
+            "station_flow": flow,
+            "flow_split_between": count,
+        })
+        reading.insert(ignore_permissions=True)
+        readings.append(reading)
+
+    return readings
 
 def sync_site(data):
     info = data.get("info", {})
@@ -238,8 +396,13 @@ def normalize_status(status):
         status = status.strip().lower()
 
         string_map = {
+            "disconnected": "Offline",
+            "disconnect": "Offline",
+            "waiting": "Online",
+            "alarm": "Warning",
             "1": "Online",
-            "0": "Offline",
+            "0": "Online",
+            "-1": "Offline",
             "online": "Online",
             "running": "Online",
             "generating_on_grid": "Online",
@@ -259,7 +422,8 @@ def normalize_status(status):
 
 def normalize_device_status(status):
     status_map = {
-        0: "Offline",
+        -1: "Offline",
+        0: "Standby",
         1: "Running",
         2: "Fault",
         3: "Standby",
@@ -268,7 +432,10 @@ def normalize_device_status(status):
     try:
         return status_map.get(int(status), "Offline")
     except (TypeError, ValueError):
-        return "Offline"
+        # SEMS+ sends text statuses
+        return {"Online": "Running", "Fault": "Fault", "Warning": "Running"}.get(
+            normalize_status(status), "Offline"
+        )
 
 @frappe.whitelist()
 def sync_all_stations():

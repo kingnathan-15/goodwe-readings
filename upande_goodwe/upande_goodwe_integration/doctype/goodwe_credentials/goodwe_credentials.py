@@ -9,5 +9,6 @@ class GoodWeCredentials(Document):
         if (
             self.has_value_changed("email")
             or self.has_value_changed("password")
+            or self.has_value_changed("api_platform")
         ):
             authenticate()

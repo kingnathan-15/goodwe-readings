@@ -6,8 +6,41 @@ from frappe.utils import now_datetime
 
 LOGIN_URL = "https://www.semsportal.com/api/v1/Common/CrossLogin"
 
+
+def get_platform():
+    """"SEMS+" (default) or "Classic", from API Platform in GoodWe Credentials."""
+    platform = frappe.db.get_single_value("GoodWe Credentials", "api_platform")
+    return "Classic" if platform == "Classic" else "SEMS+"
+
+
 @frappe.whitelist()
 def authenticate():
+    if get_platform() == "SEMS+":
+        return authenticate_sems_plus()
+    return authenticate_classic()
+
+
+def authenticate_sems_plus():
+    from upande_goodwe.goodwe.sems_plus import SemsPlusClient, SemsPlusError
+
+    try:
+        client = SemsPlusClient()
+        client.login()
+    except SemsPlusError as exc:
+        frappe.db.set_single_value("GoodWe Credentials", "authentication_status", "Authentication Failed")
+        frappe.db.commit()
+        frappe.throw(f"SEMS+ login failed: {exc}")
+
+    frappe.db.set_single_value("GoodWe Credentials", {
+        "authentication_status": "Authenticated",
+        "last_authenticated": now_datetime(),
+        "base_api_url": client.api_base,
+    })
+    frappe.db.commit()
+    return {"platform": "SEMS+", "gateway": client.api_base}
+
+
+def authenticate_classic():
     settings = frappe.get_single("GoodWe Credentials")
 
     headers = {

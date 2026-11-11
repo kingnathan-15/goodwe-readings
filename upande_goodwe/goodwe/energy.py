@@ -16,6 +16,9 @@ from frappe.utils import add_days, flt, getdate
 # had no live data (frozen API data) or no generation at all.
 MIN_READINGS_FOR_LIVE_CHECK = 8
 FROZEN_THRESHOLD_KWH = 0.05
+# More than this per inverter per day means the counter jumped (e.g. switching from the
+# classic SEMS Portal's frozen counter to SEMS+), not real generation. 15 kW x 10 h.
+MAX_KWH_PER_INVERTER_DAY = 150
 LOOKBACK_DAYS = 10
 
 
@@ -63,8 +66,8 @@ def daily_energy_by_inverter(from_date, to_date):
 
         if day < from_date:
             continue
-        if kwh < 0:  # counter reset or inverter replaced
-            kwh = None
+        if kwh < 0 or kwh > MAX_KWH_PER_INVERTER_DAY * max(gap or 1, 1):
+            kwh = None  # counter reset, inverter replaced, or a switch of data source
         live = not (kwh is not None and kwh < FROZEN_THRESHOLD_KWH and r.n >= MIN_READINGS_FOR_LIVE_CHECK)
         result.setdefault(inv, {})[str(day)] = {
             "kwh": round(kwh, 2) if kwh is not None else None,
