@@ -1,0 +1,19 @@
+{
+ "app": "upande_goodwe",
+ "creation": "2026-11-11 15:56:23.179023",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon_type": "App",
+ "idx": 0,
+ "label": "Upande GoodWe Integration",
+ "link": "/app/goodwe",
+ "link_type": "External",
+ "logo_url": "/assets/upande_goodwe/images/upande-goodwe-icon.svg",
+ "modified": "2026-11-11 15:56:23.179023",
+ "modified_by": "Administrator",
+ "name": "Upande GoodWe Integration",
+ "owner": "Administrator",
+ "roles": [],
+ "standard": 1
+}

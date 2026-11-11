@@ -163,7 +163,7 @@ def _upsert(site, log_date, values, overwrite, dry_run, stats):
         changed = False
         for field, val in values.items():
             existing = doc.get(field)
-            if overwrite or existing in (None, ""):
+            if overwrite or not existing:
                 if existing != val:
                     if not dry_run:
                         doc.set(field, val)
