@@ -227,8 +227,7 @@ class SemsPlusClient:
         return {"station_id": station_id, "flow": flow, "devices": devices}
 
     def list_stations(self, page=0, size=100):
-        """Returns a list of station IDs registered to this account.
-        Uses the SEMS+ paginated station endpoint; response shape may vary by account tier."""
+        """Returns a list of station IDs registered to this account."""
         data = self.request(
             "/sems-plant/api/stations/page",
             method="POST",
@@ -236,7 +235,7 @@ class SemsPlusClient:
         )
         items = (
             data if isinstance(data, list)
-            else (data.get("list") or data.get("stations") or data.get("data") or [])
+            else (data.get("dataList") or data.get("list") or data.get("data") or [])
             if isinstance(data, dict)
             else []
         )
@@ -244,7 +243,7 @@ class SemsPlusClient:
         for s in items:
             if not isinstance(s, dict):
                 continue
-            sid = s.get("powerStationId") or s.get("stationId") or s.get("id")
+            sid = s.get("id") or s.get("powerStationId") or s.get("stationId")
             if sid:
                 station_ids.append(str(sid))
         return station_ids
@@ -283,6 +282,7 @@ def test_login():
     client = SemsPlusClient()
     client.login()
     return {"logged_in": True, "gateway": client.api_base}
+
 
 
 @frappe.whitelist()
