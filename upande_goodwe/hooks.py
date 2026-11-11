@@ -80,7 +80,7 @@ web_include_js = ["/assets/upande_goodwe/js/upande_goodwe_tile_logo.js"]  # /app
 # Svg Icons
 # ------------------
 # include app icons in desk
-app_include_icons = "upande_goodwe/public/icons.svg"
+app_include_icons = "assets/upande_goodwe/icons.svg"
 
 # Home Pages
 # ----------
