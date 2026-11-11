@@ -79,16 +79,43 @@ def daily_energy_by_inverter(from_date, to_date):
     return result
 
 
+def official_daily_energy(from_date, to_date):
+    """{date_str: {"kwh": total of all stations, "source": ...}} from GoodWe Daily Energy
+    (GoodWe's own daily totals fetched from SEMS+, or entered by hand)."""
+    if not frappe.db.table_exists("GoodWe Daily Energy"):
+        return {}
+    rows = frappe.get_all(
+        "GoodWe Daily Energy",
+        filters={"energy_date": ["between", [getdate(from_date), getdate(to_date)]], "energy_kwh": ["is", "set"]},
+        fields=["energy_date", "energy_kwh", "source"],
+    )
+    out = {}
+    for r in rows:
+        day = out.setdefault(str(r.energy_date), {"kwh": 0.0, "sources": set()})
+        day["kwh"] = round(day["kwh"] + flt(r.energy_kwh), 2)
+        day["sources"].add(r.source or "Manual")
+    return {d: {"kwh": v["kwh"], "source": ", ".join(sorted(v["sources"]))} for d, v in out.items()}
+
+
 def fleet_daily_energy(from_date, to_date):
-    """Returns {date_str: {"kwh": total of live inverters or None, "live": any inverter live,
-    "inverters": {...}}} for days with readings."""
+    """Returns {date_str: {"kwh", "live", "source", "inverters"}} per day.
+
+    Official daily totals (GoodWe Daily Energy) win where they exist; otherwise the total of
+    live inverters from the lifetime counters ("Readings"). Frozen days without an official
+    total have kwh None and live False."""
     per_inv = daily_energy_by_inverter(from_date, to_date)
     days = {}
     for inv, by_day in per_inv.items():
         for d, v in by_day.items():
-            day = days.setdefault(d, {"kwh": None, "live": False, "inverters": {}})
+            day = days.setdefault(d, {"kwh": None, "live": False, "source": "Readings", "inverters": {}})
             day["inverters"][inv] = v
             if v["live"] and v["kwh"] is not None:
                 day["kwh"] = round((day["kwh"] or 0) + v["kwh"], 2)
                 day["live"] = True
+    for d, off in official_daily_energy(from_date, to_date).items():
+        day = days.setdefault(d, {"kwh": None, "live": False, "source": "Readings", "inverters": {}})
+        day["estimate_kwh"] = day["kwh"]
+        day["kwh"] = off["kwh"]
+        day["live"] = True
+        day["source"] = off["source"]
     return days

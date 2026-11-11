@@ -22,6 +22,9 @@ scheduler_events = {
         ],
         "0 0 * * *": [
             "upande_goodwe.goodwe.auth.authenticate"
+        ],
+        "30 0 * * *": [
+            "upande_goodwe.goodwe.backfill.fetch_daily_totals"
         ]
     },
     "hourly": [
@@ -36,27 +39,27 @@ scheduler_events = {
 
 # required_apps = []
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "upande_goodwe",
-# 		"logo": "/assets/upande_goodwe/logo.png",
-# 		"title": "Upande GoodWe Integration",
-# 		"route": "/upande_goodwe",
-# 		"has_permission": "upande_goodwe.api.permission.has_app_permission"
-# 	}
-# ]
+# Each item in the list will be shown as an app on the apps screen / desktop
+add_to_apps_screen = [
+    {
+        "name": "upande_goodwe",
+        "logo": "/assets/upande_goodwe/images/upande-goodwe-icon.svg",
+        "title": "Solar & Water",
+        "route": "/app/goodwe",
+        "has_permission": "upande_goodwe.goodwe.permission.has_app_permission",
+    }
+]
 
 # Includes in <head>
 # ------------------
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/upande_goodwe/css/upande_goodwe.css"
-# app_include_js = "/assets/upande_goodwe/js/upande_goodwe.js"
+app_include_js = ["/assets/upande_goodwe/js/upande_goodwe_tile_logo.js"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/upande_goodwe/css/upande_goodwe.css"
-# web_include_js = "/assets/upande_goodwe/js/upande_goodwe.js"
+web_include_js = ["/assets/upande_goodwe/js/upande_goodwe_tile_logo.js"]  # /apps page and the plant page
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "upande_goodwe/public/scss/website"
@@ -77,7 +80,7 @@ scheduler_events = {
 # Svg Icons
 # ------------------
 # include app icons in desk
-# app_include_icons = "upande_goodwe/public/icons.svg"
+app_include_icons = "upande_goodwe/public/icons.svg"
 
 # Home Pages
 # ----------

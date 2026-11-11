@@ -57,8 +57,9 @@ def get_dashboard_data(site="VV", from_date=None, to_date=None, profile_from=Non
 
 
 def get_daily_energy(from_date, to_date):
-	"""Per day: solar kWh from the inverters' lifetime counters (see energy.py), whether the
-	data was live, and an estimate of load kWh (average load x hours covered by readings).
+	"""Per day: solar kWh (GoodWe's official daily total where fetched, otherwise from the inverters'
+	lifetime counters; see energy.py), its source, whether the data was live, and an estimate of
+	load kWh (average load x hours covered by readings).
 	Days with frozen data return solar_kwh = None so the page doesn't show a false 0."""
 	if not frappe.has_permission("GoodWe Reading", "read"):
 		return []
@@ -87,6 +88,7 @@ def get_daily_energy(from_date, to_date):
 			"date": d,
 			"solar_kwh": solar[d]["kwh"] if d in solar and solar[d]["live"] else None,
 			"live": bool(solar.get(d, {}).get("live")),
+			"source": solar.get(d, {}).get("source"),
 			"load_kwh": load_by_day.get(d) if solar.get(d, {}).get("live", True) else None,
 		}
 		for d in days

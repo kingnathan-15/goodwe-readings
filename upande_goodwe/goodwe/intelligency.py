@@ -3,7 +3,7 @@ import json
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
 
-from upande_goodwe.goodwe.energy import daily_energy_by_inverter, fleet_daily_energy
+from upande_goodwe.goodwe.energy import daily_energy_by_inverter, fleet_daily_energy, official_daily_energy
 
 BASELINE_DAYS = 7
 
@@ -49,8 +49,22 @@ def _get_daily_stats(target_date):
         filters={"reading_time": ["between", [f"{target_date} 00:00:00", f"{target_date} 23:59:59"]]},
         fields=["inverter", "reading_time", "current_power_kw", "status"],
     )
+    official = official_daily_energy(target_date, target_date).get(str(target_date))
     if not readings:
-        return None
+        if not official:
+            return None
+        # No readings saved that day, but GoodWe's own daily total was fetched.
+        return {
+            "date": str(target_date),
+            "fleet_daily_energy_kwh": official["kwh"],
+            "energy_method": f"official daily total ({official['source']})",
+            "energy_source": official["source"],
+            "no_live_data": False,
+            "no_readings": True,
+            "frozen_inverters": [],
+            "per_inverter": {},
+            "offline_events": [],
+        }
 
     energy = daily_energy_by_inverter(target_date, target_date)
 
@@ -91,15 +105,25 @@ def _get_daily_stats(target_date):
                 "first_offline_at": str(min(row.reading_time for row in offline_rows)),
             })
 
-    return {
+    stats = {
         "date": str(target_date),
         "fleet_daily_energy_kwh": round(fleet_kwh, 2),
         "energy_method": "lifetime counter difference",
+        "energy_source": "Readings",
         "no_live_data": len(frozen_inverters) == len(by_inverter),
         "frozen_inverters": frozen_inverters,
         "per_inverter": per_inverter_stats,
         "offline_events": offline_events,
     }
+    if official:
+        # GoodWe's own daily total replaces the estimate from readings.
+        stats["readings_estimate_kwh"] = stats["fleet_daily_energy_kwh"]
+        stats["fleet_daily_energy_kwh"] = official["kwh"]
+        stats["energy_method"] = f"official daily total ({official['source']})"
+        stats["energy_source"] = official["source"]
+        stats["no_live_data_in_readings"] = stats["no_live_data"]
+        stats["no_live_data"] = False
+    return stats
 
 
 def _get_baseline_energy(target_date, days=BASELINE_DAYS):
@@ -123,6 +147,14 @@ def _build_summary_text(stats, baseline):
 
     parts = []
     energy = stats["fleet_daily_energy_kwh"]
+    official_note = None
+    if stats.get("energy_source") not in (None, "Readings"):
+        if stats.get("no_readings"):
+            official_note = "Total is GoodWe's daily figure from SEMS+; no live readings were saved that day."
+        elif stats.get("no_live_data_in_readings"):
+            official_note = ("Total is GoodWe's daily figure from SEMS+; the live readings that day were frozen.")
+        else:
+            official_note = "Total is GoodWe's daily figure from SEMS+."
 
     if baseline:
         pct_diff = ((energy - baseline) / baseline) * 100
@@ -141,7 +173,10 @@ def _build_summary_text(stats, baseline):
     else:
         parts.append(f"Fleet generated {flt(energy, 1)} kWh.")
 
-    if stats["frozen_inverters"]:
+    if official_note:
+        parts.append(official_note)
+
+    if stats["frozen_inverters"] and stats.get("energy_source") == "Readings":
         parts.append(
             f"No live data from {', '.join(stats['frozen_inverters'])}; "
             "its output is not included in the total."

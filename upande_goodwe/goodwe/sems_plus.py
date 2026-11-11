@@ -1,9 +1,11 @@
 """Client for GoodWe SEMS+ (the platform replacing the classic SEMS Portal).
 
 SEMS+ has no public API documentation. Login, request signing and endpoints follow
-pygoodwe 0.2.x (https://github.com/yaleman/pygoodwe, MIT licence, James Hodgkinson),
-which reads the same endpoints the SEMS+ web app uses. GoodWe can change them without
-notice; the health alerts in health.py report when that happens.
+pygoodwe 0.2.x (https://github.com/yaleman/pygoodwe, MIT licence, James Hodgkinson).
+The daily production endpoint and the browser headers it needs follow gw2pvo's SEMS+
+notes (https://github.com/aroundmyroom/gw2pvo, SEMSPLUS.md, MIT licence).
+GoodWe can change any of this without notice; the health alerts in health.py report
+when that happens.
 
 Session: the SEMS+ token is kept in the Redis cache (re-login on expiry or cache flush),
 so no long token has to fit into a doctype field.
@@ -31,6 +33,15 @@ SESSION_TTL = 12 * 3600
 TIMEOUT = 30
 
 DEVICE_TYPES = ("INVERTER", "ENERGY_STORAGE_INTEGRATED_CABINET")
+
+# The SEMS+ web app sends these on every call. Some endpoints (stations/production)
+# refuse requests without brand/os even with a valid token (per gw2pvo's notes).
+BROWSER_HEADERS = {
+    "neutral": "0",
+    "currentLang": "en",
+    "brand": "Chrome 126.0.0.0 Google Inc. en-GB Africa/Nairobi",
+    "os": "Windows 10.0 desktop",
+}
 
 
 class SemsPlusError(Exception):
@@ -126,6 +137,7 @@ class SemsPlusClient:
                         "User-Agent": WEB_USER_AGENT,
                         "Token": json.dumps(self.token),
                         "X-Signature": _signature(self.token),
+                        **BROWSER_HEADERS,
                     },
                     json=payload,
                     timeout=TIMEOUT,
@@ -213,6 +225,30 @@ class SemsPlusClient:
                         raise
                     device["errors"].append(f"{endpoint}: {exc}")
         return {"station_id": station_id, "flow": flow, "devices": devices}
+
+    def daily_production(self, station_id, day):
+        """PV energy (kWh) the station generated on `day` (date or YYYY-MM-DD), as SEMS+ shows it.
+        Returns None if SEMS+ has no figure for that day."""
+        day = str(day)[:10]
+        data = self.request(
+            "/sems-plant/api/stations/production",
+            method="POST",
+            payload={
+                "stationId": station_id,
+                "items": ["proSystemTotalStats"],
+                "dimension": "day",
+                "isReport": False,
+                "startTime": f"{day} 00:00:00",
+                "endTime": f"{day} 23:59:59",
+            },
+        )
+        if not isinstance(data, dict):
+            return None
+        value = data.get("proSystemTotalStats")
+        try:
+            return float(value) if value not in (None, "", "--") else None
+        except (TypeError, ValueError):
+            return None
 
 
 # ---------------------------------------------------------------- manual tools

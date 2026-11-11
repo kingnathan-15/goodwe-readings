@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:{solar_site}-{energy_date}",
+ "creation": "2026-11-11 12:00:00.000000",
+ "description": "Official daily PV energy per station. Used instead of reading-based estimates where present.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "solar_site",
+  "energy_date",
+  "column_break_1",
+  "energy_kwh",
+  "source",
+  "fetched_on",
+  "section_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "solar_site",
+   "fieldtype": "Link",
+   "label": "Solar Site",
+   "options": "Solar Site",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "energy_date",
+   "fieldtype": "Date",
+   "label": "Energy Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "energy_kwh",
+   "fieldtype": "Float",
+   "label": "Energy (kWh)",
+   "precision": "2",
+   "in_list_view": 1,
+   "description": "PV energy the whole station generated that day"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "SEMS+ API\nReadings\nManual",
+   "default": "Manual",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "SEMS+ API: fetched from GoodWe's daily total. Manual: typed in (e.g. read off the SEMS+ screen)."
+  },
+  {
+   "fieldname": "fetched_on",
+   "fieldtype": "Datetime",
+   "label": "Fetched On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-11 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Upande GoodWe Integration",
+ "name": "GoodWe Daily Energy",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "energy_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "energy_date",
+ "track_changes": 1
+}

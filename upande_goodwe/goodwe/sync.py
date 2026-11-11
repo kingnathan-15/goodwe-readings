@@ -1,6 +1,6 @@
 import frappe
 
-from datetime import datetime
+from datetime import datetime, timezone
 from upande_goodwe.goodwe.auth import authenticate, get_platform
 from upande_goodwe.goodwe.client import GoodWeClient
 from upande_goodwe.goodwe import health
@@ -186,6 +186,8 @@ def _sync_readings_sems_plus(devices, snapshot):
                 reading.set(field, value / count)
 
         data_time = next((detail[k] for k in SEMS_PLUS_TIME_KEYS if isinstance(detail.get(k), str)), None)
+        if not data_time and isinstance(flow.get("refreshTime"), str):
+            data_time = flow["refreshTime"]  # station-level, e.g. "2026-08-12T15:56:02.755"
         reading.goodwe_time = data_time[:140] if data_time else None
         parsed = parse_goodwe_datetime(data_time)
         if parsed and frappe.utils.time_diff_in_hours(now, parsed) > health.DATA_AGE_HOURS:
@@ -468,6 +470,19 @@ def parse_goodwe_datetime(value):
 
     if isinstance(value, datetime):
         return value
+
+    value = str(value).strip()
+    if "T" in value:  # ISO 8601 from SEMS+, e.g. 2026-08-12T15:56:02.755
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            parsed = None
+        if parsed is not None:
+            if parsed.tzinfo is not None:  # convert to the site's timezone, then drop tz
+                parsed = frappe.utils.convert_utc_to_system_timezone(
+                    parsed.astimezone(timezone.utc).replace(tzinfo=None)
+                ).replace(tzinfo=None)
+            return parsed
 
     for fmt in (
         "%m/%d/%Y %H:%M:%S",
